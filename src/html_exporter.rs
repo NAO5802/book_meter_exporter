@@ -1,18 +1,17 @@
-pub(crate) fn get_html_body() -> String {
-    // let body = reqwest::get();
-    // body
-    String::from("aaa")
+pub async fn get_html_body(url: &str) -> Result<String, reqwest::Error> {
+    let body = reqwest::get(url).await?.text().await?;
+    Ok(body)
 }
-
-pub(crate) fn parse_html(html: String) -> String {
-    // TODO
-    String::from("html body")
-}
-
-pub(crate) fn print_target_element_text(html: String, selector: String) {
-    println!("text!");
-}
-
+//
+// pub(crate) fn parse_html(html: String) -> String {
+//     // TODO
+//     String::from("html body")
+// }
+//
+// pub(crate) fn print_target_element_text(html: String, selector: String) {
+//     println!("text!");
+// }
+//
 
 #[cfg(test)]
 mod html_exporter_tests {
@@ -23,11 +22,10 @@ mod html_exporter_tests {
         assert_eq!(2 + 2, 4);
     }
 
-    #[test]
-    fn htmlのbodyが取得できること() {
-        let actual = get_html_body();
-        println!(actual);
-        assert!(actual.contains("<body class=\"layouts application\">"));
+    #[tokio::test]
+    async fn htmlのbodyが取得できること() {
+        let actual = get_html_body("https://www.rust-lang.org").await.unwrap();
+        assert!(actual.contains("A language empowering everyone to build "));
     }
 }
 
