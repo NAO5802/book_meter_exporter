@@ -1,21 +1,26 @@
+use scraper::{Html, Selector};
+use scraper::html::Select;
+
 pub async fn get_html_body(url: &str) -> Result<String, reqwest::Error> {
     let body = reqwest::get(url).await?.text().await?;
     Ok(body)
 }
-//
-// pub(crate) fn parse_html(html: String) -> String {
-//     // TODO
-//     String::from("html body")
-// }
-//
-// pub(crate) fn print_target_element_text(html: String, selector: String) {
-//     println!("text!");
-// }
-//
+
+pub fn get_target_element_texts(html: String, selector_name: String) -> Vec<String> {
+    let document = Html::parse_document(html.as_str());
+    let selector = Selector::parse(selector_name.as_str()).unwrap();
+
+    let mut result:Vec<String> = vec![];
+    for element in document.select(&selector) {
+        result.push(element.text().next().unwrap().to_string())
+    }
+    result
+}
 
 #[cfg(test)]
 mod html_exporter_tests {
-    use crate::html_exporter::get_html_body;
+    use scraper::{Html, Selector};
+    use crate::html_exporter;
 
     #[test]
     fn テストが動くこと() {
@@ -24,13 +29,25 @@ mod html_exporter_tests {
 
     #[tokio::test]
     async fn htmlのbodyが取得できること() {
-        let actual = get_html_body("https://www.rust-lang.org").await.unwrap();
+        let actual = html_exporter::get_html_body("https://www.rust-lang.org").await.unwrap();
         assert!(actual.contains("A language empowering everyone to build "));
     }
-}
 
-// TODO 消す
-// https://docs.rs/reqwest/latest/reqwest/
-// https://zenn.dev/su_do/articles/b2ed44a4d5c024
-// https://qiita.com/YoshiTheQiita/items/f66828d61293c75a4585
-// https://shinshin86.hateblo.jp/entry/2022/03/25/060000
+    #[test]
+    fn htmlから特定のセレクタの中身の文字列リストを取得できること() {
+        // given
+        let html = r#"
+                            <!DOCTYPE html>
+                            <meta charset="utf-8">
+                            <title>Hello, world!</title>
+                            <h1 class="foo">Hello, <i>world!</i></h1>
+                            <h1 class="bar">Happy, <i>helloween!</i></h1>
+                           "#.to_string();
+        let selector = String::from("h1");
+        // when
+        let actual = html_exporter::get_target_element_texts(html, selector);
+        // then
+        assert_eq!(actual.get(0).unwrap().as_str(), "Hello, ");
+        assert_eq!(actual.get(1).unwrap().as_str(), "Happy, ");
+    }
+}

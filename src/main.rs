@@ -5,11 +5,14 @@ mod html_exporter;
 
 #[tokio::main]
 async fn main() {
-    let body = html_exporter::get_html_body("****").await;
-    println!("{:?}", body);
-    // let parsed_html = html_exporter::parse_html(body);
-    // let selector = String::from("TODO");
-    // html_exporter::print_target_element_text(parsed_html, selector);
+    let body =
+        html_exporter::get_html_body("****").await
+        .expect("failed to get html body");
+    let selector = String::from("h1");
+    let target_elements = html_exporter::get_target_element_texts(body, selector);
+    // for element in target_elements {
+    //     todo!()
+    // }
 }
 
 
