@@ -8,11 +8,12 @@ pub async fn get_html_body(url: &str) -> Result<String, reqwest::Error> {
 
 pub fn get_target_element_texts(html: String, selector_name: String) -> Vec<String> {
     let document = Html::parse_document(html.as_str());
-    let selector = Selector::parse(selector_name.as_str()).unwrap();
+    let selector = Selector::parse(selector_name.as_str()).expect("failed to parse selector");
 
     let mut result:Vec<String> = vec![];
     for element in document.select(&selector) {
-        result.push(element.text().next().unwrap().to_string())
+        let text = element.text().next().expect("failed to get inner text");
+        result.push(text.to_string());
     }
     result
 }

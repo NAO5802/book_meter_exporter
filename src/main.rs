@@ -8,11 +8,11 @@ async fn main() {
     let body =
         html_exporter::get_html_body("****").await
         .expect("failed to get html body");
-    let selector = String::from("h1");
-    let target_elements = html_exporter::get_target_element_texts(body, selector);
-    // for element in target_elements {
-    //     todo!()
-    // }
+    let selector = String::from("title");
+    let texts = html_exporter::get_target_element_texts(body, selector);
+    for text in texts {
+        println!("{}", text);
+    }
 }
 
 
