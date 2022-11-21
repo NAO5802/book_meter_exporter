@@ -1,27 +1,93 @@
+use std::thread;
+use std::time::Duration;
+use chrono::NaiveDate;
+use regex::Regex;
 use scraper::{Html, Selector};
-use scraper::html::Select;
+use crate::{Asin, ReadBook, ReadDay};
 
 pub async fn get_html_body(url: &str) -> Result<String, reqwest::Error> {
     let body = reqwest::get(url).await?.text().await?;
     Ok(body)
 }
 
-pub fn get_target_element_texts(html: String, selector_name: String) -> Vec<String> {
+pub fn get_target_elements(html: &String, selector_name: String) -> Vec<String> {
     let document = Html::parse_document(html.as_str());
     let selector = Selector::parse(selector_name.as_str()).expect("failed to parse selector");
 
-    let mut result:Vec<String> = vec![];
+    let mut result = vec![];
     for element in document.select(&selector) {
-        let text = element.text().next().expect("failed to get inner text");
-        result.push(text.to_string());
+        result.push(element.html())
     }
     result
+}
+
+pub fn get_read_books() -> Vec<ReadBook> {
+    let read_days= get_read_days(2);
+    // let asins= get_asins(&read_days);
+
+    // generate_read_books(read_days, asins)
+    vec![ReadBook{read_day: String::from("aaa"), asin: 123}]
+}
+
+fn generate_read_books(read_days: Vec<ReadDay>, asins: Vec<Asin>) -> Vec<ReadBook> {
+    let read_books:Vec<ReadBook> = vec![];
+    // for asin in asins {
+    //     todo!()
+    // }
+    read_books
+}
+
+async fn get_read_days(pages: i32)-> Vec<ReadDay> {
+    let mut read_days: Vec<ReadDay> = vec![];
+
+    for page in 1..(pages + 1) {
+        let url = format!("https://bookmeter.com/users//books/read?display_type=list&page={}", page);
+        let html = get_html_body(url.as_str()).await.expect("failed to get html body");
+        let read_day_elements = get_target_elements(&html, String::from(".detail__date"));
+        let book_id_elements = get_target_elements(&html, String::from(".thumbnail__cover >  a"));
+
+        for index in 1..21 {
+            read_days.push(
+                ReadDay{
+                    book_id: adapt_book_id(book_id_elements.get(index - 1).unwrap()),
+                    read_day: adapt_read_day(&read_day_elements.get(index - 1).unwrap())
+                })
+        }
+
+        // 連続アクセスしない
+        thread::sleep(Duration::from_millis(500));
+    }
+    read_days
+}
+
+fn get_asins(read_days: &Vec<ReadDay>)-> Vec<Asin>{
+    todo!()
+}
+
+fn adapt_read_day(element: &String) -> String {
+    let html = Html::parse_fragment(element);
+    let selector = Selector::parse(".detail__date").expect("failed to parse element");
+    let day_str = html.select(&selector).next().unwrap().text().next().unwrap();
+
+    let date = NaiveDate::parse_from_str(day_str, "%Y/%m/%d").unwrap();
+    date.format("%Y-%m-%d 00:00:00").to_string()
+}
+
+fn adapt_book_id(element: &String) -> i32 {
+    let html = Html::parse_fragment(element);
+    let selector = Selector::parse("a").expect("failed to parse elemet");
+    let href = html.select(&selector).next().unwrap().value().attr("href").expect("failed to get attributes");
+
+    let reg  = Regex::new("[0-9]+").unwrap();
+    let caps = reg.captures(href).unwrap().get(0).unwrap();
+    caps.as_str().parse::<i32>().expect("failed to parse")
 }
 
 #[cfg(test)]
 mod html_exporter_tests {
     use scraper::{Html, Selector};
-    use crate::html_exporter;
+    use crate::{html_exporter, ReadBook, ReadDay};
+    use crate::html_exporter::{adapt_book_id, adapt_read_day, get_read_days};
 
     #[test]
     fn テストが動くこと() {
@@ -35,7 +101,7 @@ mod html_exporter_tests {
     }
 
     #[test]
-    fn htmlから特定のセレクタの中身の文字列リストを取得できること() {
+    fn htmlから特定のセレクタを取得できること() {
         // given
         let html = r#"
                             <!DOCTYPE html>
@@ -46,9 +112,35 @@ mod html_exporter_tests {
                            "#.to_string();
         let selector = String::from("h1");
         // when
-        let actual = html_exporter::get_target_element_texts(html, selector);
+        let actual = html_exporter::get_target_elements(&html, selector);
         // then
-        assert_eq!(actual.get(0).unwrap().as_str(), "Hello, ");
-        assert_eq!(actual.get(1).unwrap().as_str(), "Happy, ");
+        assert_eq!(actual.get(0).unwrap(), "<h1 class=\"foo\">Hello, <i>world!</i></h1>");
+        assert_eq!(actual.get(1).unwrap(), "<h1 class=\"bar\">Happy, <i>helloween!</i></h1>");
+    }
+
+    #[tokio::test]
+    async fn 指定ページ分の読了日情報が取得できること(){
+        let actual = html_exporter::get_read_days(2).await;
+
+        assert_eq!(actual.get(0).unwrap().read_day, String::from("2022-10-20 00:00:00"));
+        assert_eq!(actual.get(0).unwrap().book_id, 19532708);
+        assert_eq!(actual.get(1).unwrap().read_day, String::from("2022-10-13 00:00:00"));
+        assert_eq!(actual.len(), 40);
+    }
+
+    #[test]
+    fn read_dayが適切なフォーマットで取得できること() {
+        let element = String::from("<div class=\"detail__date\">2021/11/02</div>");
+        let actual = adapt_read_day(&element);
+
+        assert_eq!(actual, String::from("2021-11-02 00:00:00"));
+    }
+
+    #[test]
+    fn book_idが適切なフォーマットで取得できること() {
+        let element = String::from("<a data-gtm-component-name\"BookThumbnail\" data-gtm-event-type=\"action_on_book_search_result\" href=\"/books/12434764\"><img src=\"https://m.media-amazon.com/images/I/41IsQ7z6tGL._SL500_.jpg\" alt=\"レシピを見ないで作れるようになりましょう。\" class=\"cover__image\"></a>");
+        let actual = adapt_book_id(&element);
+
+        assert_eq!(actual, 12434764);
     }
 }

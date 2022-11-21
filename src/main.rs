@@ -1,19 +1,47 @@
-// 1. ASINコードを取得する
-// 2. 読了日を取得する
-
 mod html_exporter;
 
 #[tokio::main]
 async fn main() {
-    let body =
-        html_exporter::get_html_body("****").await
-        .expect("failed to get html body");
-    let selector = String::from("title");
-    let texts = html_exporter::get_target_element_texts(body, selector);
-    for text in texts {
-        println!("{}", text);
+    let read_books: Vec<ReadBook> = html_exporter::get_read_books();
+
+    for book in read_books {
+        println!("{:?}", book);
     }
+
 }
 
+#[derive(Debug)]
+pub struct ReadBook {
+    asin: i32,
+    read_day: String,
+}
 
+#[derive(Debug)]
+pub struct ReadDay {
+    book_id: i32,
+    read_day: String,
+}
+
+#[derive(Debug)]
+pub struct Asin {
+    book_id: i32,
+    asin: i32,
+}
+
+// output２(できたらcsv)
+// book_id, 読了日, asin
+// book_id, 読了日, asin
+// book_id, 読了日, asin
+
+// リストのnページにアクセス
+// nページの読了日とbook_idのペア全部とる
+// ページ数分繰り返す
+// book_id, 読了日
+// book_id, 読了日
+// book_id, 読了日
+
+// book_idのリストを渡して、その分だけ個別ページアクセス&asinをとる
+// book_id, asin
+// book_id, asin
+// book_id, asin
 
