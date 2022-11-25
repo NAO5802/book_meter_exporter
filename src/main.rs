@@ -2,7 +2,7 @@ mod html_exporter;
 
 #[tokio::main]
 async fn main() {
-    let read_books: Vec<ReadBook> = html_exporter::get_read_books();
+    let read_books: Vec<ReadBook> = html_exporter::get_read_books().await;
 
     for book in read_books {
         println!("{:?}", book);
@@ -12,7 +12,7 @@ async fn main() {
 
 #[derive(Debug)]
 pub struct ReadBook {
-    asin: i32,
+    asin: i64,
     read_day: String,
 }
 
@@ -25,7 +25,7 @@ pub struct ReadDay {
 #[derive(Debug)]
 pub struct Asin {
     book_id: i32,
-    asin: i32,
+    asin: i64,
 }
 
 // output２(できたらcsv)

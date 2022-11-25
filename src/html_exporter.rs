@@ -21,9 +21,9 @@ pub fn get_target_elements(html: &String, selector_name: String) -> Vec<String> 
     result
 }
 
-pub fn get_read_books() -> Vec<ReadBook> {
-    let read_days= get_read_days(2);
-    // let asins= get_asins(&read_days);
+pub async fn get_read_books() -> Vec<ReadBook> {
+    let read_days = get_read_days(2).await;
+    let asins = get_asins(&read_days).await;
 
     // generate_read_books(read_days, asins)
     vec![ReadBook{read_day: String::from("aaa"), asin: 123}]
@@ -60,8 +60,29 @@ async fn get_read_days(pages: i32)-> Vec<ReadDay> {
     read_days
 }
 
-fn get_asins(read_days: &Vec<ReadDay>)-> Vec<Asin>{
-    todo!()
+async fn get_asins(read_days: &Vec<ReadDay>) -> Vec<Asin> {
+    let mut asins: Vec<Asin> = vec![];
+
+    for read_day in read_days {
+        let url = format!("https://bookmeter.com/books/{}", read_day.book_id);
+        let html_body = get_html_body(&url).await.expect("failed to get html body");
+
+        let elements = get_target_elements(&html_body, String::from("a"));
+
+        for element in elements {
+            if element.contains("www.amazon.co.jp/dp/product/") {
+                asins.push(Asin {
+                    book_id: read_day.book_id,
+                    asin: adapt_asin(&element),
+                })
+            }
+        }
+
+        // 連続アクセスしない
+        thread::sleep(Duration::from_millis(500));
+    }
+
+    asins
 }
 
 fn adapt_read_day(element: &String) -> String {
@@ -83,11 +104,17 @@ fn adapt_book_id(element: &String) -> i32 {
     caps.as_str().parse::<i32>().expect("failed to parse")
 }
 
+fn adapt_asin(element: &String) -> i64 {
+    let reg = Regex::new("www.amazon.co.jp/dp/product/([0-9]+)").unwrap();
+    let cap = reg.captures(element).unwrap().get(1).unwrap();
+    cap.as_str().parse::<i64>().expect("failed to parse i64")
+}
+
 #[cfg(test)]
 mod html_exporter_tests {
     use scraper::{Html, Selector};
-    use crate::{html_exporter, ReadBook, ReadDay};
-    use crate::html_exporter::{adapt_book_id, adapt_read_day, get_read_days};
+    use crate::{Asin, html_exporter, ReadBook, ReadDay};
+    use crate::html_exporter::{adapt_asin, adapt_book_id, adapt_read_day, get_asins, get_read_days};
 
     #[test]
     fn テストが動くこと() {
@@ -142,5 +169,26 @@ mod html_exporter_tests {
         let actual = adapt_book_id(&element);
 
         assert_eq!(actual, 12434764);
+    }
+
+    #[tokio::test]
+    async fn book_idに対応するasinが取得できること() {
+        let read_days = vec![
+            ReadDay { book_id: 12434764, read_day: String::from("2022-10-20 00:00:00") },
+            ReadDay { book_id: 19532708, read_day: String::from("2022-10-20 00:00:00") },
+        ];
+        let actual = html_exporter::get_asins(&read_days).await;
+
+        assert_eq!(actual.get(0).unwrap().asin, 4797393947);
+        assert_eq!(actual.get(0).unwrap().book_id, 12434764);
+        assert_eq!(actual.get(1).unwrap().asin, 4297127830);
+    }
+
+    #[test]
+    fn asinが適切なフォーマットで取得できること(){
+        let element = String::from("<a target=\"_blank\" class=\"image__cover\" href=\"https://www.amazon.co.jp/dp/product/4297127830/ref=as_li_tf_tl?camp=247&amp;creative=1211&amp;creativeASIN=4297127830&amp;ie=UTF8&amp;linkCode=as2&amp;tag=bookmeter_book_image_image_pc_logoff-22\"><img alt=\"良いコード/悪いコードで学ぶ設計入門 ―保守しやすい 成長し続けるコードの書き方\" src=\"https://m.media-amazon.com/images/I/41CRtHTRSCL._SL500_.jpg\"></a>");
+        let actual = adapt_asin(&element);
+
+        assert_eq!(actual, 4297127830);
     }
 }
