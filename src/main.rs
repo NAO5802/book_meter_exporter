@@ -5,7 +5,7 @@ async fn main() {
     let read_books: Vec<ReadBook> = html_exporter::get_read_books().await;
 
     for book in read_books {
-        println!("{:?}", book);
+        println!("{},{}", book.asin, book.read_day);
     }
 
 }
@@ -27,21 +27,4 @@ pub struct Asin {
     book_id: i32,
     asin: i64,
 }
-
-// output２(できたらcsv)
-// book_id, 読了日, asin
-// book_id, 読了日, asin
-// book_id, 読了日, asin
-
-// リストのnページにアクセス
-// nページの読了日とbook_idのペア全部とる
-// ページ数分繰り返す
-// book_id, 読了日
-// book_id, 読了日
-// book_id, 読了日
-
-// book_idのリストを渡して、その分だけ個別ページアクセス&asinをとる
-// book_id, asin
-// book_id, asin
-// book_id, asin
 
