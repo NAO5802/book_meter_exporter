@@ -22,11 +22,23 @@ pub fn get_target_elements(html: &String, selector_name: String) -> Vec<String> 
 }
 
 pub async fn get_read_books() -> Vec<ReadBook> {
-    let read_days = get_read_days(2).await;
-    let asins = get_asins(&read_days).await;
+    let read_days = distinct_read_day_by_book_id(get_read_days(2).await);
+    let asins = distinct_asin_by_book_id(get_asins(&read_days).await);
 
     generate_read_books(&read_days, &asins)
 }
+
+fn distinct_read_day_by_book_id(mut read_days: Vec<ReadDay>) -> Vec<ReadDay>{
+    read_days.dedup_by(|a,b| a.book_id == b.book_id);
+    read_days
+
+}
+
+fn distinct_asin_by_book_id(mut asins: Vec<Asin>)-> Vec<Asin> {
+    asins.dedup_by(|a,b| a.book_id == b. book_id);
+    asins
+}
+
 
 fn generate_read_books(read_days: &Vec<ReadDay>, asins: &Vec<Asin>) -> Vec<ReadBook> {
     let mut read_books: Vec<ReadBook> = vec![];
@@ -47,7 +59,7 @@ async fn get_read_days(pages: i32) -> Vec<ReadDay> {
     let mut read_days: Vec<ReadDay> = vec![];
 
     for page in 1..(pages + 1) {
-        let url = format!("https://bookmeter.com/users//books/read?display_type=list&page={}", page);
+        let url = format!("https://bookmeter.com/users/390266/books/read?display_type=list&page={}", page);
         let html = get_html_body(url.as_str()).await.expect("failed to get html body");
         let read_day_elements = get_target_elements(&html, String::from(".detail__date"));
         let book_id_elements = get_target_elements(&html, String::from(".thumbnail__cover >  a"));
@@ -120,7 +132,7 @@ fn adapt_asin(element: &String) -> i64 {
 mod html_exporter_tests {
     use scraper::{Html, Selector};
     use crate::{Asin, html_exporter, ReadBook, ReadDay};
-    use crate::html_exporter::{adapt_asin, adapt_book_id, adapt_read_day, generate_read_books, get_asins, get_read_days};
+    use crate::html_exporter::{adapt_asin, adapt_book_id, adapt_read_day, distinct_asin_by_book_id, distinct_read_day_by_book_id, generate_read_books, get_asins, get_read_days};
 
     #[test]
     fn テストが動くこと() {
@@ -201,7 +213,7 @@ mod html_exporter_tests {
     #[test]
     fn 読了日とasinのリストから読了本リストを生成する() {
         let read_days = vec![
-            ReadDay { book_id: 12434764, read_day: String::from("2022-10-20 00:00:00") },
+            ReadDay { book_id: 12434764, read_day: String::from("2022-10-21 00:00:00") },
             ReadDay { book_id: 19532708, read_day: String::from("2022-10-20 00:00:00") },
         ];
         let asins = vec![
@@ -212,8 +224,39 @@ mod html_exporter_tests {
         let actual = generate_read_books(&read_days, &asins);
 
         assert_eq!(actual.get(0).unwrap().asin, 4797393947);
-        assert_eq!(actual.get(0).unwrap().read_day,  String::from("2022-10-20 00:00:00"));
+        assert_eq!(actual.get(0).unwrap().read_day,  String::from("2022-10-21 00:00:00"));
         assert_eq!(actual.get(1).unwrap().asin, 4297127830);
         assert_eq!(actual.get(1).unwrap().read_day,  String::from("2022-10-20 00:00:00"));
     }
+
+    #[test]
+    fn book_idが重複するread_bookを排除したリストを返す() {
+        let read_days = vec![
+            ReadDay { book_id: 12434764, read_day: String::from("2022-10-21 00:00:00") },
+            ReadDay { book_id: 12434764, read_day: String::from("2022-10-21 00:00:00") },
+            ReadDay { book_id: 19532708, read_day: String::from("2022-10-20 00:00:00") },
+        ];
+
+        let actual = distinct_read_day_by_book_id(read_days);
+
+        assert_eq!(actual.len(), 2);
+        assert_eq!(actual.get(0).unwrap().book_id, 12434764);
+        assert_eq!(actual.get(1).unwrap().book_id, 19532708);
+    }
+
+    #[test]
+    fn book_idが重複するasinを排除したリストを返す() {
+        let asins = vec![
+            Asin{book_id: 12434764, asin: 4797393947},
+            Asin{book_id: 12434764, asin: 4797393947},
+            Asin{book_id: 19532708, asin: 4297127830},
+        ];
+
+        let actual = distinct_asin_by_book_id(asins);
+
+        assert_eq!(actual.len(), 2);
+        assert_eq!(actual.get(0).unwrap().book_id, 12434764);
+        assert_eq!(actual.get(1).unwrap().book_id, 19532708);
+    }
+
 }
