@@ -25,15 +25,21 @@ pub async fn get_read_books() -> Vec<ReadBook> {
     let read_days = get_read_days(2).await;
     let asins = get_asins(&read_days).await;
 
-    // generate_read_books(read_days, asins)
-    vec![ReadBook { read_day: String::from("aaa"), asin: 123 }]
+    generate_read_books(&read_days, &asins)
 }
 
-fn generate_read_books(read_days: Vec<ReadDay>, asins: Vec<Asin>) -> Vec<ReadBook> {
-    let read_books: Vec<ReadBook> = vec![];
-    // for asin in asins {
-    //     todo!()
-    // }
+fn generate_read_books(read_days: &Vec<ReadDay>, asins: &Vec<Asin>) -> Vec<ReadBook> {
+    let mut read_books: Vec<ReadBook> = vec![];
+    for asin in asins {
+        for read_day in read_days {
+            if asin.book_id == read_day.book_id {
+                read_books.push(ReadBook {
+                    read_day: String::from(&read_day.read_day),
+                    asin: asin.asin,
+                })
+            }
+        }
+    }
     read_books
 }
 
@@ -114,7 +120,7 @@ fn adapt_asin(element: &String) -> i64 {
 mod html_exporter_tests {
     use scraper::{Html, Selector};
     use crate::{Asin, html_exporter, ReadBook, ReadDay};
-    use crate::html_exporter::{adapt_asin, adapt_book_id, adapt_read_day, get_asins, get_read_days};
+    use crate::html_exporter::{adapt_asin, adapt_book_id, adapt_read_day, generate_read_books, get_asins, get_read_days};
 
     #[test]
     fn テストが動くこと() {
@@ -190,5 +196,24 @@ mod html_exporter_tests {
         let actual = adapt_asin(&element);
 
         assert_eq!(actual, 4297127830);
+    }
+
+    #[test]
+    fn 読了日とasinのリストから読了本リストを生成する() {
+        let read_days = vec![
+            ReadDay { book_id: 12434764, read_day: String::from("2022-10-20 00:00:00") },
+            ReadDay { book_id: 19532708, read_day: String::from("2022-10-20 00:00:00") },
+        ];
+        let asins = vec![
+            Asin{book_id: 12434764, asin: 4797393947},
+            Asin{book_id: 19532708, asin: 4297127830},
+        ];
+
+        let actual = generate_read_books(&read_days, &asins);
+
+        assert_eq!(actual.get(0).unwrap().asin, 4797393947);
+        assert_eq!(actual.get(0).unwrap().read_day,  String::from("2022-10-20 00:00:00"));
+        assert_eq!(actual.get(1).unwrap().asin, 4297127830);
+        assert_eq!(actual.get(1).unwrap().read_day,  String::from("2022-10-20 00:00:00"));
     }
 }
