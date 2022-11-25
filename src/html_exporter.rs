@@ -26,18 +26,18 @@ pub async fn get_read_books() -> Vec<ReadBook> {
     let asins = get_asins(&read_days).await;
 
     // generate_read_books(read_days, asins)
-    vec![ReadBook{read_day: String::from("aaa"), asin: 123}]
+    vec![ReadBook { read_day: String::from("aaa"), asin: 123 }]
 }
 
 fn generate_read_books(read_days: Vec<ReadDay>, asins: Vec<Asin>) -> Vec<ReadBook> {
-    let read_books:Vec<ReadBook> = vec![];
+    let read_books: Vec<ReadBook> = vec![];
     // for asin in asins {
     //     todo!()
     // }
     read_books
 }
 
-async fn get_read_days(pages: i32)-> Vec<ReadDay> {
+async fn get_read_days(pages: i32) -> Vec<ReadDay> {
     let mut read_days: Vec<ReadDay> = vec![];
 
     for page in 1..(pages + 1) {
@@ -48,9 +48,9 @@ async fn get_read_days(pages: i32)-> Vec<ReadDay> {
 
         for index in 1..21 {
             read_days.push(
-                ReadDay{
+                ReadDay {
                     book_id: adapt_book_id(book_id_elements.get(index - 1).unwrap()),
-                    read_day: adapt_read_day(&read_day_elements.get(index - 1).unwrap())
+                    read_day: adapt_read_day(&read_day_elements.get(index - 1).unwrap()),
                 })
         }
 
@@ -99,7 +99,7 @@ fn adapt_book_id(element: &String) -> i32 {
     let selector = Selector::parse("a").expect("failed to parse elemet");
     let href = html.select(&selector).next().unwrap().value().attr("href").expect("failed to get attributes");
 
-    let reg  = Regex::new("[0-9]+").unwrap();
+    let reg = Regex::new("[0-9]+").unwrap();
     let caps = reg.captures(href).unwrap().get(0).unwrap();
     caps.as_str().parse::<i32>().expect("failed to parse")
 }
@@ -146,7 +146,7 @@ mod html_exporter_tests {
     }
 
     #[tokio::test]
-    async fn 指定ページ分の読了日情報が取得できること(){
+    async fn 指定ページ分の読了日情報が取得できること() {
         let actual = html_exporter::get_read_days(2).await;
 
         assert_eq!(actual.get(0).unwrap().read_day, String::from("2022-10-20 00:00:00"));
