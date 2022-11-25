@@ -61,7 +61,7 @@ async fn get_read_days(pages: i32) -> Vec<ReadDay> {
         }
 
         // 連続アクセスしない
-        thread::sleep(Duration::from_millis(500));
+        thread::sleep(Duration::from_millis(1000));
     }
     read_days
 }
@@ -85,7 +85,7 @@ async fn get_asins(read_days: &Vec<ReadDay>) -> Vec<Asin> {
         }
 
         // 連続アクセスしない
-        thread::sleep(Duration::from_millis(500));
+        thread::sleep(Duration::from_millis(1000));
     }
 
     asins
