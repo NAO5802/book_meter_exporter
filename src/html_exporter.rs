@@ -22,7 +22,8 @@ pub fn get_target_elements(html: &String, selector_name: String) -> Vec<String> 
 }
 
 pub async fn get_read_books() -> Vec<ReadBook> {
-    let read_days = distinct_read_day_by_book_id(get_read_days(2).await);
+    let read_days = distinct_read_day_by_book_id(get_read_days(1, 17).await);
+    // TODO asinが全量取れていない原因を調べる
     let asins = distinct_asin_by_book_id(get_asins(&read_days).await);
 
     generate_read_books(&read_days, &asins)
@@ -55,10 +56,10 @@ fn generate_read_books(read_days: &Vec<ReadDay>, asins: &Vec<Asin>) -> Vec<ReadB
     read_books
 }
 
-async fn get_read_days(pages: i32) -> Vec<ReadDay> {
+async fn get_read_days(from: i32, to: i32) -> Vec<ReadDay> {
     let mut read_days: Vec<ReadDay> = vec![];
 
-    for page in 1..(pages + 1) {
+    for page in from..(to + 1) {
         let url = format!("https://bookmeter.com/users/390266/books/read?display_type=list&page={}", page);
         let html = get_html_body(url.as_str()).await.expect("failed to get html body");
         let read_day_elements = get_target_elements(&html, String::from(".detail__date"));
@@ -165,11 +166,12 @@ mod html_exporter_tests {
 
     #[tokio::test]
     async fn 指定ページ分の読了日情報が取得できること() {
-        let actual = html_exporter::get_read_days(2).await;
+        let actual = html_exporter::get_read_days(2, 3).await;
 
-        assert_eq!(actual.get(0).unwrap().read_day, String::from("2022-10-20 00:00:00"));
-        assert_eq!(actual.get(0).unwrap().book_id, 19532708);
-        assert_eq!(actual.get(1).unwrap().read_day, String::from("2022-10-13 00:00:00"));
+        assert_eq!(actual.get(0).unwrap().read_day, String::from("2021-11-02 00:00:00"));
+        assert_eq!(actual.get(0).unwrap().book_id, 12434764);
+        assert_eq!(actual.get(1).unwrap().read_day, String::from("2021-11-02 00:00:00"));
+        assert_eq!(actual.get(1).unwrap().book_id, 14637727);
         assert_eq!(actual.len(), 40);
     }
 
