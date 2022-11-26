@@ -12,7 +12,7 @@ async fn main() {
 
 #[derive(Debug)]
 pub struct ReadBook {
-    asin: i64,
+    asin: String,
     read_day: String,
 }
 
@@ -25,6 +25,6 @@ pub struct ReadDay {
 #[derive(Debug)]
 pub struct Asin {
     book_id: i32,
-    asin: i64,
+    asin: String,
 }
 

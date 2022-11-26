@@ -22,10 +22,10 @@ pub fn get_target_elements(html: &String, selector_name: String) -> Vec<String> 
 }
 
 pub async fn get_read_books() -> Vec<ReadBook> {
-    let read_days = distinct_read_day_by_book_id(get_read_days(1, 17).await);
-    // TODO asinが全量取れていない原因を調べる
+    let read_days = distinct_read_day_by_book_id(get_read_days(18, 18).await);
     let asins = distinct_asin_by_book_id(get_asins(&read_days).await);
 
+    println!("read_days.len(): {:?}, asins.len(): {:?}", read_days.len(), asins.len());
     generate_read_books(&read_days, &asins)
 }
 
@@ -48,7 +48,7 @@ fn generate_read_books(read_days: &Vec<ReadDay>, asins: &Vec<Asin>) -> Vec<ReadB
             if asin.book_id == read_day.book_id {
                 read_books.push(ReadBook {
                     read_day: String::from(&read_day.read_day),
-                    asin: asin.asin,
+                    asin: String::from(&asin.asin),
                 })
             }
         }
@@ -60,7 +60,7 @@ async fn get_read_days(from: i32, to: i32) -> Vec<ReadDay> {
     let mut read_days: Vec<ReadDay> = vec![];
 
     for page in from..(to + 1) {
-        let url = format!("https://bookmeter.com/users/390266/books/read?display_type=list&page={}", page);
+        let url = format!("https://bookmeter.com/users//books/read?display_type=list&page={}", page);
         let html = get_html_body(url.as_str()).await.expect("failed to get html body");
         let read_day_elements = get_target_elements(&html, String::from(".detail__date"));
         let book_id_elements = get_target_elements(&html, String::from(".thumbnail__cover >  a"));
@@ -98,7 +98,7 @@ async fn get_asins(read_days: &Vec<ReadDay>) -> Vec<Asin> {
         }
 
         // 連続アクセスしない
-        thread::sleep(Duration::from_millis(1000));
+        thread::sleep(Duration::from_millis(3000));
     }
 
     asins
@@ -123,10 +123,10 @@ fn adapt_book_id(element: &String) -> i32 {
     caps.as_str().parse::<i32>().expect("failed to parse")
 }
 
-fn adapt_asin(element: &String) -> i64 {
-    let reg = Regex::new("www.amazon.co.jp/dp/product/([0-9]+)").unwrap();
+fn adapt_asin(element: &String) -> String {
+    let reg = Regex::new("www.amazon.co.jp/dp/product/([0-9]+X|[0-9]+)").unwrap();
     let cap = reg.captures(element).unwrap().get(1).unwrap();
-    cap.as_str().parse::<i64>().expect("failed to parse i64")
+    String::from(cap.as_str())
 }
 
 #[cfg(test)]
@@ -199,17 +199,25 @@ mod html_exporter_tests {
         ];
         let actual = html_exporter::get_asins(&read_days).await;
 
-        assert_eq!(actual.get(0).unwrap().asin, 4797393947);
+        assert_eq!(actual.get(0).unwrap().asin, "4797393947");
         assert_eq!(actual.get(0).unwrap().book_id, 12434764);
-        assert_eq!(actual.get(1).unwrap().asin, 4297127830);
+        assert_eq!(actual.get(1).unwrap().asin, "4297127830");
     }
 
     #[test]
-    fn asinが適切なフォーマットで取得できること(){
+    fn 数字のみのasinが適切なフォーマットで取得できること(){
         let element = String::from("<a target=\"_blank\" class=\"image__cover\" href=\"https://www.amazon.co.jp/dp/product/4297127830/ref=as_li_tf_tl?camp=247&amp;creative=1211&amp;creativeASIN=4297127830&amp;ie=UTF8&amp;linkCode=as2&amp;tag=bookmeter_book_image_image_pc_logoff-22\"><img alt=\"良いコード/悪いコードで学ぶ設計入門 ―保守しやすい 成長し続けるコードの書き方\" src=\"https://m.media-amazon.com/images/I/41CRtHTRSCL._SL500_.jpg\"></a>");
         let actual = adapt_asin(&element);
 
-        assert_eq!(actual, 4297127830);
+        assert_eq!(actual, "4297127830");
+    }
+
+    #[test]
+    fn 数字とアルファベットのasinが適切なフォーマットで取得できること(){
+        let element = String::from("<a target=\"_blank\" class=\"image__cover\" href=\"https://www.amazon.co.jp/dp/product/489471499X/ref=as_li_tf_tl?camp=247&amp;creative=1211&amp;creativeASIN=4297127830&amp;ie=UTF8&amp;linkCode=as2&amp;tag=bookmeter_book_image_image_pc_logoff-22\"><img alt=\"良いコード/悪いコードで学ぶ設計入門 ―保守しやすい 成長し続けるコードの書き方\" src=\"https://m.media-amazon.com/images/I/41CRtHTRSCL._SL500_.jpg\"></a>");
+        let actual = adapt_asin(&element);
+
+        assert_eq!(actual, "489471499X");
     }
 
     #[test]
@@ -219,15 +227,15 @@ mod html_exporter_tests {
             ReadDay { book_id: 19532708, read_day: String::from("2022-10-20 00:00:00") },
         ];
         let asins = vec![
-            Asin{book_id: 12434764, asin: 4797393947},
-            Asin{book_id: 19532708, asin: 4297127830},
+            Asin{book_id: 12434764, asin: String::from("4797393947")},
+            Asin{book_id: 19532708, asin: String::from("4297127830")},
         ];
 
         let actual = generate_read_books(&read_days, &asins);
 
-        assert_eq!(actual.get(0).unwrap().asin, 4797393947);
+        assert_eq!(actual.get(0).unwrap().asin, "4797393947");
         assert_eq!(actual.get(0).unwrap().read_day,  String::from("2022-10-21 00:00:00"));
-        assert_eq!(actual.get(1).unwrap().asin, 4297127830);
+        assert_eq!(actual.get(1).unwrap().asin, "4297127830");
         assert_eq!(actual.get(1).unwrap().read_day,  String::from("2022-10-20 00:00:00"));
     }
 
@@ -249,9 +257,9 @@ mod html_exporter_tests {
     #[test]
     fn book_idが重複するasinを排除したリストを返す() {
         let asins = vec![
-            Asin{book_id: 12434764, asin: 4797393947},
-            Asin{book_id: 12434764, asin: 4797393947},
-            Asin{book_id: 19532708, asin: 4297127830},
+            Asin{book_id: 12434764, asin: String::from("4797393947")},
+            Asin{book_id: 12434764, asin: String::from("4797393947")},
+            Asin{book_id: 19532708, asin: String::from("4297127830")},
         ];
 
         let actual = distinct_asin_by_book_id(asins);
